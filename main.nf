@@ -14,6 +14,7 @@ params {
 
 process SimulateReads {
     tag "Simulating reads"
+    
     input:
     path genome_fasta
 
@@ -24,22 +25,20 @@ process SimulateReads {
     script:
     """
     mkdir -p ${params.output_dir}
-    art_illumina -ss HS25 -i ${genome_fasta} \
-      -l ${params.read_length} -f ${params.coverage} -m 200 -s 10 \
+    art_illumina -ss HS25 -i ${genome_fasta} \\
+      -l ${params.read_length} -f ${params.coverage} -m 200 -s 10 \\
       -o ${params.output_dir}methylorubrum
-    mv ${params.output_dir}methylorubrum.fq ${params.output_dir}methylorubrum_R1.fq
-    art_illumina -ss HS25 -i ${genome_fasta} \
-      -l ${params.read_length} -f ${params.coverage} -m 200 -s 10 \
-      -o ${params.output_dir}methylorubrum_R2
-    mv ${params.output_dir}methylorubrum_R2.fq ${params.output_dir}methylorubrum_R2.fq
+
+    mv ${params.output_dir}methylorubrum1.fq ${params.output_dir}methylorubrum_R1.fq
+    mv ${params.output_dir}methylorubrum2.fq ${params.output_dir}methylorubrum_R2.fq
     """
 }
 
 workflow {
-    simulated_reads = Channel.fromPath(params.genome_fasta) | SimulateReads
-    
-    rnaseq_input = simulated_reads.map { r1, r2 -> tuple('SimulatedSample', r1, r2) }
-    
+    simulated_reads = SimulateReads(params.genome_fasta)
+
+    rnaseq_input = simulated_reads.collect().map { files -> tuple('SimulatedSample', files[0], files[1]) }
+
     rnaseq_input | RNASEQ \
         --fasta params.genome_fasta \
         --gtf params.genome_gtf \
